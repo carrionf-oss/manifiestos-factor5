@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manifiestos Factor 5 — T011</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#152238;
+    --ink-soft:#42506b;
+    --paper:#eef1f6;
+    --card:#ffffff;
+    --line:#d6dce6;
+    --accent:#e8650d;      /* cinta de embalaje */
+    --accent-ink:#8a3a02;
+    --ok:#1a7f4e;
+    --mono:ui-monospace,'Cascadia Mono','JetBrains Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font:15px/1.5 -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  .wrap{max-width:1000px;margin:0 auto;padding:28px 20px 60px}
+  header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  h1{font-size:26px;margin:0;letter-spacing:-.02em}
+  h1 .f5{color:var(--accent)}
+  .tag{font-family:var(--mono);font-size:12px;color:var(--ink-soft);border:1px solid var(--line);border-radius:4px;padding:2px 8px;background:var(--card)}
+  .sub{color:var(--ink-soft);margin:0 0 22px;font-size:14px}
+
+  /* Zona de carga con aspecto de etiqueta de palet */
+  .drop{
+    position:relative;background:var(--card);border:2px dashed var(--line);
+    border-radius:10px;padding:34px 24px;text-align:center;cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .drop::before{
+    content:"";position:absolute;inset:0 0 auto 0;height:10px;border-radius:8px 8px 0 0;
+    background:repeating-linear-gradient(90deg,var(--accent) 0 18px,transparent 18px 26px);
+    opacity:.85;
+  }
+  .drop:hover,.drop.over{border-color:var(--accent);background:#fff8f2}
+  .drop strong{display:block;font-size:17px;margin-bottom:4px}
+  .drop span{color:var(--ink-soft);font-size:13px}
+  .drop input{display:none}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin-top:18px}
+  .hidden{display:none!important}
+
+  .fields{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.04em}
+  .field input{
+    font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fbfcfe;min-width:240px
+  }
+  .field input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+
+  .chips{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 4px}
+  .chip{background:#f4f6fa;border:1px solid var(--line);border-radius:8px;padding:8px 14px;min-width:110px}
+  .chip b{display:block;font-size:20px;font-family:var(--mono)}
+  .chip span{font-size:12px;color:var(--ink-soft)}
+
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  button{
+    font:inherit;font-weight:600;border:0;border-radius:8px;padding:11px 20px;cursor:pointer;
+  }
+  button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .btn-pdf{background:var(--accent);color:#fff}
+  .btn-pdf:hover{background:#cf5605}
+  .btn-xls{background:var(--ok);color:#fff}
+  .btn-xls:hover{background:#146740}
+  .btn-ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line)}
+  .btn-ghost:hover{color:var(--ink);border-color:var(--ink-soft)}
+
+  .warn{background:#fff6e8;border:1px solid #f0d9ae;color:#7a5200;border-radius:8px;padding:10px 14px;font-size:13px;margin-top:14px}
+  .error{background:#fdeeee;border:1px solid #e8b6b6;color:#8c1f1f;border-radius:8px;padding:10px 14px;font-size:14px;margin-top:14px}
+
+  /* Vista previa */
+  .preview h2{font-size:16px;margin:26px 0 10px;text-transform:uppercase;letter-spacing:.05em}
+  .catblock{margin-bottom:6px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
+  .cathead{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:9px 14px;background:#f0f3f8;cursor:pointer;font-weight:700;font-size:14px;user-select:none
+  }
+  .cathead:hover{background:#e7ecf4}
+  .cathead .n{color:var(--ink-soft);font-weight:500;font-size:12.5px;font-family:var(--mono);white-space:nowrap}
+  .secdiv{margin:22px 0 8px;font-weight:800;font-size:15px;letter-spacing:.06em;color:var(--accent-ink)}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{ text-align:left;background:#fafbfd;color:var(--ink-soft);font-weight:600;padding:6px 10px;border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+  td{padding:5px 10px;border-bottom:1px solid #eef1f6;vertical-align:top}
+  tr:last-child td{border-bottom:0}
+  td.mono{font-family:var(--mono);font-size:12px;white-space:nowrap}
+  td.num{text-align:right;font-family:var(--mono)}
+  th.num{text-align:right}
+  footer{margin-top:36px;color:var(--ink-soft);font-size:12.5px;text-align:center}
+  @media (max-width:640px){
+    .field input{min-width:100%}
+    td:nth-child(5),th:nth-child(5){display:none} /* oculta proveedor en móvil */
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Manifiestos <span class="f5">Factor 5</span></h1>
+    <span class="tag">CLASIFICACIÓN POR CATEGORÍA · T011</span>
+  </header>
+  <p class="sub">Sube el CSV en bruto del camión y genera el manifiesto clasificado en PDF y Excel. Todo se procesa en tu navegador: ningún dato sale de tu equipo.</p>
+
+  <div class="drop" id="drop" role="button" tabindex="0" aria-label="Subir archivo CSV">
+    <strong>Arrastra aquí el CSV del camión</strong>
+    <span>o haz clic para elegir el archivo (separado por punto y coma)</span>
+    <input type="file" id="fileInput" accept=".csv,text/csv">
+  </div>
+
+  <div class="panel hidden" id="resultPanel">
+    <div class="fields">
+      <div class="field">
+        <label for="titleInput">Manifiesto</label>
+        <input id="titleInput" type="text">
+      </div>
+      <div class="field">
+        <label for="dateInput">Fecha</label>
+        <input id="dateInput" type="text" placeholder="dd/mm/aaaa" style="min-width:140px">
+      </div>
+      <button class="btn-ghost" id="resetBtn">Cargar otro CSV</button>
+    </div>
+
+    <div class="chips" id="chips"></div>
+    <div id="warnBox"></div>
+
+    <div class="btns">
+      <button class="btn-pdf" id="pdfBtn">Descargar PDF</button>
+      <button class="btn-xls" id="xlsBtn">Descargar Excel</button>
+    </div>
+
+    <div class="preview" id="preview"></div>
+  </div>
+
+  <div id="errBox"></div>
+
+  <footer>Factor 5 · Uso interno · Catálogo completo de categorías (01–71) incrustado; editable en <code>CAT_NAMES</code>.</footer>
+</div>
+
+<script>
+/* ============ Nombres de categoría ============
+   Catálogo completo. Donde la categoría aparece en el manifiesto oficial
+   se respeta su denominación exacta; el resto proviene del
+   LISTADO CATEGORÍAS Y COMPRADORES 2024. */
+const CAT_NAMES = {
+  '01':'ROPA DE BEBÉ/NIÑO PEQUEÑO',
+  '02':'ROPA DE NIÑOS',
+  '03':'CONSUMIBLES',
+  '04':'SALUD E HIGIENE',
+  '05':'CUIDADO INFANTIL',
+  '06':'HABITACIÓN DE BEBÉ/NIÑO PEQUEÑO',
+  '07':'MUEBLES PARA EL HOGAR DEL BEBÉ',
+  '08':'VIAJES',
+  '09':'PASEOS',
+  '10':'PRIMERAS EXPERIENCIAS',
+  '11':'CONSTRUCCIONES PREESCOLARES',
+  '12':'PRIMERAS ACTIVIDADES',
+  '13':'DESCUBRIMIENTOS',
+  '14':'PELUCHE',
+  '15':'PELUCHE INTERACTIVO',
+  '16':'ELECTRÓNICA INFANTIL',
+  '17':'MUNDO DE MADERA',
+  '18':'LIBROS',
+  '19':'JUEGOS Y ROMPECABEZAS EDUCATIVOS',
+  '20':'MANUALIDADES NIÑOS',
+  '21':'MANUALIDADES PREESCOLARES',
+  '22':'TAREAS DE CASA',
+  '23':'JUGAR A MAMA Y PAPA',
+  '24':'QUIERO SER…',
+  '25':'CIENCIA',
+  '26':'TECNOLOGÍA, INGENIERÍA Y MATEMÁTICAS',
+  '27':'MEDIO AMBIENTE',
+  '28':'JUEGOS MÁGICOS, CLÁSICOS Y SOCIALES',
+  '29':'ROMPECABEZAS',
+  '30':'JUEGOS DE ACCION PARA 6 + AÑOS',
+  '31':'JUEGOS DE ACCION PARA 6 - AÑOS',
+  '32':'MODA INFANTIL',
+  '33':'HABITACION PREESCOLAR',
+  '34':'REGALO',
+  '35':"ARTÍCULOS DE CLAIRE'S",
+  '36':'CARNAVAL, HALLOWEEN Y DECORACION DE NAVIDAD',
+  '37':'VERANO',
+  '38':'VUELTA AL COLE',
+  '39':'MINI CAMPAÑAS',
+  '40':'DULCES Y GOLOSINAS',
+  '41':'TARJETAS, PAPEL DE REGALO, BOLSAS REG,',
+  '42':'PILAS',
+  '43':'IMPULSO',
+  '44':'FAVORES DE FIESTA',
+  '45':'FIGURAS DE ACCION',
+  '46':'TECHTRONIC',
+  '47':'LICENCIAS LEGO',
+  '48':'MINI MUNDOS Y COLECCIONABLES PREESC',
+  '49':'MINI MUNDOS Y COLECCIONABLES PARA 5 +',
+  '50':'OTROS MINI MUNDOS Y COLECCIONABLES',
+  '51':'PLAYMOBIL',
+  '52':'LEGO (CORE)',
+  '53':'OTRAS CONSTRUCCIONES',
+  '54':'MUÑECAS MANIQUI',
+  '55':'CIRCUITOS DE CARRERAS',
+  '56':'COCHES Y PISTAS',
+  '58':'RADIO CONTROL',
+  '59':'MOTOS, TRICICLOS',
+  '60':'VEHICULOS DE BATERIA O A PEDALES',
+  '61':'PATINES Y MONOPATINES',
+  '62':'BICICLETAS',
+  '63':'EQUIPAMIENTO AIRE LIBRE',
+  '64':'DEPORTE',
+  '65':'COMPETICION Y ACCION',
+  '66':'FRIKI ZONE',
+  '69':'HOBBY PARA ADULTOS',
+  '70':'ELECTRÓNICA JUVENIL',
+  '71':'MOVILIDAD URBANA'
+  /* Las categorías H01–H10 (PRENATAL PICCOLO) se muestran solo con su código, como en el manifiesto original */
+};
+
+const REQUIRED_COLS = ['Material','Nombre Material','Cantidad Embalada','UMU','Categoria','Proveedor','Pack'];
+const MESES = {ENERO:1,FEBRERO:2,MARZO:3,ABRIL:4,MAYO:5,JUNIO:6,JULIO:7,AGOSTO:8,SEPTIEMBRE:9,SETIEMBRE:9,OCTUBRE:10,NOVIEMBRE:11,DICIEMBRE:12};
+
+let state = null; // {rows, groups, title, date}
+
+/* ============ Utilidades ============ */
+function catKey(raw){
+  const c = (raw||'').trim().toUpperCase();
+  if(!c) return '¿?';
+  if(c.startsWith('H')){
+    const n = parseInt(c.slice(-2),10);
+    return isNaN(n) ? c : 'H'+String(n).padStart(2,'0');
+  }
+  return c.slice(-2);
+}
+function catLabel(key){
+  if(key.startsWith('H')) return key;
+  const name = CAT_NAMES[key];
+  return name ? key+' '+name : key;
+}
+function decodeBuffer(buf){
+  try{ return new TextDecoder('utf-8',{fatal:true}).decode(buf); }
+  catch(e){ return new TextDecoder('windows-1252').decode(buf); }
+}
+function todayStr(){
+  const d=new Date();
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+function dateFromFilename(name){
+  const m = name.toUpperCase().match(/(\d{1,2})[ _-]+([A-ZÁÉÍÓÚ]+)[ _-]+(\d{4})/);
+  if(m && MESES[m[2].normalize('NFD').replace(/[\u0300-\u036f]/g,'')]){
+    const mes = MESES[m[2].normalize('NFD').replace(/[\u0300-\u036f]/g,'')];
+    return String(parseInt(m[1],10)).padStart(2,'0')+'/'+String(mes).padStart(2,'0')+'/'+m[3];
+  }
+  return todayStr();
+}
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ============ Procesado del CSV ============ */
+function processCSV(text, filename){
+  const res = Papa.parse(text.replace(/^\uFEFF/,''), {header:true, delimiter:';', skipEmptyLines:'greedy'});
+  const rows = res.data.map(r=>{
+    const clean={};
+    for(const k in r) clean[k.trim()] = typeof r[k]==='string' ? r[k].trim() : r[k];
+    return clean;
+  }).filter(r=>r['Material']);
+
+  if(!rows.length) throw new Error('No se han encontrado líneas de datos. Comprueba que el CSV usa ";" como separador y tiene cabecera.');
+  const missing = REQUIRED_COLS.filter(c=>!(c in rows[0]));
+  if(missing.length) throw new Error('Faltan columnas en el CSV: '+missing.join(', '));
+
+  // Agrupar por categoría conservando el orden del CSV
+  const groups = new Map();
+  for(const r of rows){
+    const key = catKey(r['Categoria']);
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(r);
+  }
+  // Orden: numéricas ascendente, luego H ascendente
+  const keys = [...groups.keys()].sort((a,b)=>{
+    const ah=a.startsWith('H'), bh=b.startsWith('H');
+    if(ah!==bh) return ah?1:-1;
+    return a.localeCompare(b,undefined,{numeric:true});
+  });
+
+  const title = filename.replace(/\.[^.]+$/,'');
+  state = {rows, groups, keys, title, date: dateFromFilename(filename)};
+  renderResult();
+}
+
+/* ============ Render en pantalla ============ */
+function renderResult(){
+  document.getElementById('errBox').innerHTML='';
+  document.getElementById('resultPanel').classList.remove('hidden');
+  document.getElementById('drop').classList.add('hidden');
+  document.getElementById('titleInput').value = state.title;
+  document.getElementById('dateInput').value = state.date;
+
+  const totUnits = state.rows.reduce((s,r)=>s+(parseFloat(String(r['Cantidad Embalada']).replace(',','.'))||0),0);
+  const uniqRefs = new Set(state.rows.map(r=>r['Material'])).size;
+  const pallets = new Set(state.rows.map(r=>r['Pallet']).filter(Boolean)).size;
+  document.getElementById('chips').innerHTML = `
+    <div class="chip"><b>${state.rows.length}</b><span>líneas</span></div>
+    <div class="chip"><b>${uniqRefs}</b><span>referencias únicas</span></div>
+    <div class="chip"><b>${state.keys.length}</b><span>categorías</span></div>
+    <div class="chip"><b>${totUnits.toLocaleString('es-ES')}</b><span>unidades</span></div>
+    ${pallets?`<div class="chip"><b>${pallets}</b><span>pallets</span></div>`:''}`;
+
+  const unknown = state.keys.filter(k=>!k.startsWith('H') && !CAT_NAMES[k]);
+  document.getElementById('warnBox').innerHTML = unknown.length
+    ? `<div class="warn">Categorías sin nombre asignado (se mostrarán solo con su número): <b>${unknown.join(', ')}</b>. Dime sus nombres y las añado a la herramienta.</div>` : '';
+
+  let html='<h2>Vista previa</h2>'; let hShown=false;
+  for(const key of state.keys){
+    if(key.startsWith('H') && !hShown){ html+='<div class="secdiv">PRENATAL PICCOLO</div>'; hShown=true; }
+    const items = state.groups.get(key);
+    html += `<div class="catblock">
+      <div class="cathead" onclick="this.nextElementSibling.classList.toggle('hidden')">
+        <span>${esc(catLabel(key))}</span><span class="n">${items.length} Ref.</span>
+      </div>
+      <div>
+      <table><thead><tr><th>Referencia</th><th>Descripción</th><th class="num">Cant.</th><th>UMU</th><th>Proveedor</th><th class="num">Pack</th></tr></thead><tbody>` +
+      items.map(r=>`<tr>
+        <td class="mono">${esc(r['Material'])}</td>
+        <td>${esc(r['Nombre Material'])}</td>
+        <td class="num">${esc(r['Cantidad Embalada'])}</td>
+        <td>${esc(r['UMU'])}</td>
+        <td>${esc(r['Proveedor'])}</td>
+        <td class="num">${esc(r['Pack'])}</td></tr>`).join('') +
+      `</tbody></table></div></div>`;
+  }
+  document.getElementById('preview').innerHTML = html;
+}
+
+/* ============ PDF ============ */
+function makePDF(){
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const title = document.getElementById('titleInput').value.trim() || state.title;
+  const date = document.getElementById('dateInput').value.trim() || todayStr();
+
+  const body=[]; let hShown=false;
+  for(const key of state.keys){
+    if(key.startsWith('H') && !hShown){
+      body.push([{content:'PRENATAL PICCOLO', colSpan:6, styles:{fillColor:[21,34,56], textColor:255, fontStyle:'bold', halign:'left', fontSize:9}}]);
+      hShown=true;
+    }
+    const items = state.groups.get(key);
+    body.push([{content:`${catLabel(key)}    ${items.length} Ref.`, colSpan:6,
+      styles:{fillColor:[232,236,243], fontStyle:'bold', fontSize:8.5}}]);
+    for(const r of items){
+      body.push([r['Material'], r['Nombre Material'], r['Cantidad Embalada'], r['UMU'], r['Proveedor'], r['Pack']]);
+    }
+  }
+
+  doc.autoTable({
+    body,
+    startY: 30,
+    margin: {top:30, bottom:14, left:10, right:10},
+    theme: 'plain',
+    styles: {fontSize:7.5, cellPadding:{top:1,bottom:1,left:1.5,right:1.5}, textColor:[20,25,40], overflow:'ellipsize'},
+    columnStyles: {
+      0:{cellWidth:22, font:'courier'},
+      1:{cellWidth:72},
+      2:{cellWidth:12, halign:'right'},
+      3:{cellWidth:10},
+      4:{cellWidth:60},
+      5:{cellWidth:12, halign:'right'}
+    },
+    didDrawPage: (data)=>{
+      doc.setFont('helvetica','bold'); doc.setFontSize(13);
+      doc.setTextColor(232,101,13); doc.text('FACTOR 5', 10, 12);
+      doc.setTextColor(20,25,40); doc.setFontSize(10);
+      doc.text('CLASIFICACION POR CATEGORIA', 10, 18);
+      doc.setFont('helvetica','normal'); doc.setFontSize(9);
+      doc.text('Manifiesto '+title, 10, 23.5);
+      doc.text(date, 200, 23.5, {align:'right'});
+      doc.setDrawColor(232,101,13); doc.setLineWidth(.5); doc.line(10,26,200,26);
+      doc.setFontSize(7.5); doc.setTextColor(110,118,135);
+      doc.text('Factor 5 · '+date+' · Uso interno', 10, 291);
+      doc.text('Página '+doc.internal.getNumberOfPages(), 200, 291, {align:'right'});
+    }
+  });
+  doc.save('Manifiesto_'+title.replace(/[^\wÁÉÍÓÚÑáéíóúñ-]+/g,'_')+'.pdf');
+}
+
+/* ============ Excel ============ */
+function makeXLSX(){
+  const title = document.getElementById('titleInput').value.trim() || state.title;
+  const date = document.getElementById('dateInput').value.trim() || todayStr();
+  const wb = XLSX.utils.book_new();
+
+  // Hoja 1: por categoría (mismo formato que el PDF)
+  const aoa = [
+    ['FACTOR 5 — CLASIFICACION POR CATEGORIA'],
+    ['Manifiesto '+title, '', '', '', '', date],
+    [],
+    ['Referencia','Descripción','Cantidad','UMU','Proveedor','Pack']
+  ];
+  let hShown=false;
+  for(const key of state.keys){
+    if(key.startsWith('H') && !hShown){ aoa.push([]); aoa.push(['PRENATAL PICCOLO']); hShown=true; }
+    const items = state.groups.get(key);
+    aoa.push([catLabel(key), items.length+' Ref.']);
+    for(const r of items){
+      aoa.push([r['Material'], r['Nombre Material'], Number(String(r['Cantidad Embalada']).replace(',','.'))||r['Cantidad Embalada'], r['UMU'], r['Proveedor'], Number(r['Pack'])||r['Pack']]);
+    }
+  }
+  const ws1 = XLSX.utils.aoa_to_sheet(aoa);
+  ws1['!cols']=[{wch:12},{wch:46},{wch:10},{wch:6},{wch:34},{wch:8}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Por categoría');
+
+  // Hoja 2: por pallet
+  const byPallet = new Map();
+  for(const r of state.rows){
+    const p = r['Pallet']||'(sin pallet)';
+    if(!byPallet.has(p)) byPallet.set(p,[]);
+    byPallet.get(p).push(r);
+  }
+  const aoa2 = [['Pallet','Referencia','Descripción','Cantidad','UMU','Categoría','Proveedor']];
+  for(const p of [...byPallet.keys()].sort()){
+    for(const r of byPallet.get(p)){
+      aoa2.push([p, r['Material'], r['Nombre Material'], Number(String(r['Cantidad Embalada']).replace(',','.'))||r['Cantidad Embalada'], r['UMU'], catLabel(catKey(r['Categoria'])), r['Proveedor']]);
+    }
+  }
+  const ws2 = XLSX.utils.aoa_to_sheet(aoa2);
+  ws2['!cols']=[{wch:12},{wch:12},{wch:46},{wch:10},{wch:6},{wch:32},{wch:34}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Por pallet');
+
+  // Hoja 3: datos en bruto
+  const ws3 = XLSX.utils.json_to_sheet(state.rows);
+  XLSX.utils.book_append_sheet(wb, ws3, 'Datos brutos');
+
+  XLSX.writeFile(wb, 'Manifiesto_'+title.replace(/[^\wÁÉÍÓÚÑáéíóúñ-]+/g,'_')+'.xlsx');
+}
+
+/* ============ Carga de archivos ============ */
+function handleFile(file){
+  document.getElementById('errBox').innerHTML='';
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{ processCSV(decodeBuffer(e.target.result), file.name); }
+    catch(err){
+      document.getElementById('errBox').innerHTML = '<div class="error">'+esc(err.message)+'</div>';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+const drop=document.getElementById('drop'), input=document.getElementById('fileInput');
+drop.addEventListener('click',()=>input.click());
+drop.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();}});
+input.addEventListener('change',()=>{ if(input.files[0]) handleFile(input.files[0]); input.value=''; });
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
+drop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) handleFile(f); });
+
+document.getElementById('pdfBtn').addEventListener('click',makePDF);
+document.getElementById('xlsBtn').addEventListener('click',makeXLSX);
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  state=null;
+  document.getElementById('resultPanel').classList.add('hidden');
+  document.getElementById('drop').classList.remove('hidden');
+});
+</script>
+</body>
+</html>
